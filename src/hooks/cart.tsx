@@ -18,9 +18,9 @@ interface Product {
 
 interface CartContext {
   products: Product[];
-  addToCart(item: Product): void;
-  increment(id: string): void;
-  decrement(id: string): void;
+  addToCart(item: Product): Promise<void>;
+  increment(id: string): Promise<void>;
+  decrement(id: string): Promise<void>;
 }
 
 const CartContext = createContext<CartContext | null>(null);
@@ -30,23 +30,49 @@ const CartProvider: React.FC = ({ children }) => {
 
   useEffect(() => {
     async function loadProducts(): Promise<void> {
-      // TODO LOAD ITEMS FROM ASYNC STORAGE
+      const cart = await AsyncStorage.getItem('@GoMarketplace:cart');
+      if (cart) {
+        setProducts(JSON.parse(cart) as Product[]);
+      }
     }
 
     loadProducts();
   }, []);
 
-  const addToCart = useCallback(async product => {
-    // TODO ADD A NEW ITEM TO THE CART
-  }, []);
+  const save = useCallback(async () => {
+    await AsyncStorage.setItem('@GoMarketplace:cart', JSON.stringify(products));
+  }, [products]);
 
-  const increment = useCallback(async id => {
-    // TODO INCREMENTS A PRODUCT QUANTITY IN THE CART
-  }, []);
+  const addToCart = useCallback(
+    async (product: Product) => {
+      const reformed = [...products, { ...product, quantity: 1 }];
+      setProducts(reformed);
+      await save();
+    },
+    [products, save],
+  );
 
-  const decrement = useCallback(async id => {
-    // TODO DECREMENTS A PRODUCT QUANTITY IN THE CART
-  }, []);
+  const increment = useCallback(
+    async id => {
+      const reformed = products.map(p =>
+        p.id === id ? { ...p, quantity: p?.quantity + 1 } : p,
+      );
+      setProducts(reformed);
+      await save();
+    },
+    [products, save],
+  );
+
+  const decrement = useCallback(
+    async id => {
+      const reformed = products.map(p =>
+        p.id === id ? { ...p, quantity: Math.max(1, p.quantity - 1) } : p,
+      );
+      setProducts(reformed);
+      await save();
+    },
+    [products, save],
+  );
 
   const value = React.useMemo(
     () => ({ addToCart, increment, decrement, products }),
